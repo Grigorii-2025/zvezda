@@ -163,10 +163,20 @@ const DATA = {
     {id:"upor",   glyph:"∞",  title:"Не сдаюсь",       how:"Вернуться к задаче и довести её до конца"},
     {id:"yasno",  glyph:"∴",  title:"Ясное объяснение",how:"Записать решение так, чтобы понял любой"},
     {id:"dva",    glyph:"2×", title:"Второй способ",   how:"Найти ещё одно решение той же задачи"},
-    {id:"avtor",  glyph:"✎",  title:"Автор задачи",    how:"Придумать свою задачу для остальных"}
+    {id:"avtor",  glyph:"✎",  title:"Автор задачи",    how:"Придумать свою задачу для остальных"},
+    /* эти знаки считаются сами по результатам домашних задач */
+    {id:"first",  glyph:"1",  title:"Первая звезда",          how:"Зажечь свою первую звезду", auto:true},
+    {id:"tried",  glyph:"◐",  title:"Ни одной тёмной звезды", how:"Взяться за каждую задачу созвездия", auto:true},
+    {id:"full",   glyph:"★",  title:"Созвездие собрано",      how:"Зажечь все звёзды одного созвездия", auto:true},
+    {id:"hard",   glyph:"✱",  title:"Покоритель звёздочек",   how:"Решить задачу со звёздочкой", auto:true}
   ],
   lessons: [
     {id:1, title:"Разминка для ума", sky:"Созвездие Смекалки",
+     /* лампочка: звёзды по контуру колбы, задача со звёздочкой — искра в середине */
+     fig:{h:430, s:1.1,
+       pts:[[190,150],[300,55],[410,150],[350,300],[250,300],[300,190]],
+       edges:[[0,1],[1,2],[2,3],[3,4],[4,0],[4,5],[5,3]],
+       art:'<path d="M250 300C250 255 165 225 165 150C165 70 235 22 300 22C365 22 435 70 435 150C435 225 350 255 350 300"/><path d="M262 380H338M267 394H333M278 408H322"/>'},
      hw:[
       {k:"Д1",name:"Сосуды", q:"Как с помощью сосудов на 4 и 9 литров налить ровно 6 литров воды?"},
       {k:"Д2",name:"Часы",   q:"Часы бьют 6 ударов за 5 секунд. За сколько секунд они пробьют 12 ударов?"},
@@ -286,6 +296,18 @@ function route(code){
   if(!tourSeen(kid.code)) startTour();
 }
 const mark=(k,l,key)=>((k.lessons[l.id]||{}).marks||{})[key]||"open";
+function autoCounts(k){
+  let first=0,tried=0,full=0,hard=0;
+  DATA.lessons.forEach(l=>{
+    if(!l.hw.length) return;
+    const ms=l.hw.map(t=>mark(k,l,t.k));
+    if(ms.some(m=>ST[m].lit)) first=1;
+    if(ms.every(m=>m!=="open")) tried++;
+    if(ms.every(m=>ST[m].lit)) full++;
+    l.hw.forEach((t,i)=>{ if(t.star&&ST[ms[i]].lit) hard++; });
+  });
+  return {first,tried,full,hard};
+}
 function totals(k){
   let lit=0,idea=0,fix=0,open=0;
   DATA.lessons.forEach(l=>l.hw.forEach(t=>{const m=mark(k,l,t.k);
@@ -296,12 +318,15 @@ function totals(k){
 function kidView(){
   const T=totals(kid), L=kid.lessons[lesson.id]||{}, hw=lesson.hw;
   if(!sel) sel=(hw.find(t=>mark(kid,lesson,t.k)==="idea")||hw[0]).k;
-  const {P,s}=layout(hw.length);
-  let lines="";
-  for(let i=1;i<P.length;i++){
-    const on=ST[mark(kid,lesson,hw[i-1].k)].lit&&ST[mark(kid,lesson,hw[i].k)].lit;
-    lines+=`<line x1="${P[i-1][0]}" y1="${P[i-1][1]}" x2="${P[i][0]}" y2="${P[i][1]}" stroke="${on?"var(--gold)":"var(--muted)"}" stroke-width="${on?1.8:1.2}" ${on?'opacity=".6"':'opacity=".45" stroke-dasharray="2 8" stroke-linecap="round"'}/>`;
-  }
+  const F=lesson.fig, Z=layout(hw.length);
+  const P=F?F.pts:Z.P, s=F?F.s:Z.s, VH=F?F.h:330;
+  const E=F?F.edges:P.slice(1).map((_,i)=>[i,i+1]);
+  const isLit=i=>!!ST[mark(kid,lesson,hw[i].k)].lit;
+  const frac=hw.filter((_,i)=>isLit(i)).length/hw.length, done=frac===1;
+  const art=F&&F.art?`<g fill="none" stroke="${done?"var(--gold)":"var(--ink)"}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="${(0.1+0.5*frac).toFixed(2)}">${F.art}</g>`:"";
+  const A=autoCounts(kid);
+  const lines=E.map(([i,j])=>{const on=isLit(i)&&isLit(j);
+    return `<line x1="${P[i][0]}" y1="${P[i][1]}" x2="${P[j][0]}" y2="${P[j][1]}" stroke="${on?"var(--gold)":"var(--muted)"}" stroke-width="${on?1.8:1.2}" ${on?'opacity=".6"':'opacity=".45" stroke-dasharray="2 8" stroke-linecap="round"'}/>`;}).join("");
   const stars=hw.map((t,i)=>{const m=mark(kid,lesson,t.k), p=P[i];
     return `<g class="star${t.k===sel?" sel":""}" data-k="${esc(t.k)}" tabindex="0" role="button" aria-label="Задача ${esc(t.k)}, ${esc(t.name)}: ${ST[m].label}" transform="translate(${p[0]} ${p[1]})">
       <circle r="${32*s}" fill="transparent"/><circle class="ring" r="${32*s}"/>
@@ -328,8 +353,8 @@ function kidView(){
         <p class="letter">${L.letter?esc(L.letter):`<span class="muted">Отзыв скоро появится.</span>`}<small>твой учитель</small></p></div>
     <div class="stage">
       <div class="skybox">
-        <header><h2>${esc(lesson.sky)}</h2><span class="muted" style="font-size:14px">домашние задачи · нажми на звезду</span></header>
-        <svg class="sky" viewBox="0 0 600 330" role="group" aria-label="${esc(lesson.sky)}">${lines}${stars}</svg>
+        <header><h2>${esc(lesson.sky)}${done?` <span style="color:var(--gold)">· собрано!</span>`:""}</h2><span class="muted" style="font-size:14px">домашние задачи · нажми на звезду</span></header>
+        <svg class="sky" viewBox="0 0 600 ${VH}" role="group" aria-label="${esc(lesson.sky)}">${art}${lines}${stars}</svg>
         <div class="legend">${["idea","self","noexp","try","open"].map(x=>`<span>${icon(x)}${ST[x].label}</span>`).join("")}</div>
       </div>
       <div class="card" id="detail" aria-live="polite"></div>
@@ -344,8 +369,8 @@ function kidView(){
         <ul class="todo">${fixing.map(li).join("")}</ul>`:""}</div>
     </div>
     <section class="block" id="badgebox"><h2>Знаки отличия</h2>
-      <p class="muted small" style="margin-top:4px">Их дают не за скорость, а за то, как ты думаешь. Один и тот же знак можно получить много раз.</p>
-      <div class="badges">${DATA.badges.map(b=>{const c=(kid.badges||[]).filter(x=>x===b.id).length;
+      <p class="muted small" style="margin-top:4px">Одни знаки даёт учитель за то, как ты думаешь. Другие появляются сами, когда загораются звёзды. Один и тот же знак можно получить много раз.</p>
+      <div class="badges">${DATA.badges.map(b=>{const c=b.auto?A[b.id]:(kid.badges||[]).filter(x=>x===b.id).length;
         const times=c%10>=2&&c%10<=4&&(c%100<12||c%100>14)?"раза":"раз";
         return `<div class="badge${c?"":" off"}"><i>${esc(b.glyph)}${c>1?`<em>×${c}</em>`:""}</i><div><b>${esc(b.title)}</b><span>${c>1?`Получен ${c} ${times}`:c?"Получен":"Как получить: "+esc(b.how.toLowerCase())}</span></div></div>`;}).join("")}</div>
     </section>`;
