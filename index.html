@@ -164,7 +164,7 @@ code{font:500 15px ui-monospace,Menlo,Consolas,monospace;background:rgba(0,0,0,.
    try   — была попытка, есть ошибка
    (нет записи) — ещё не сдано */
 const DATA = {
-  teacherCode: "admin",
+  teacherCode: "admin-68711",
   badges: [
     {id:"lovec",  glyph:"!",  title:"Ловец ловушек",   how:"Заметить подвох в условии и не попасться"},
     {id:"smelo",  glyph:"?",  title:"Смелая гипотеза", how:"Высказать идею, даже если не уверен"},
@@ -211,8 +211,8 @@ const DATA = {
   ],
   next: {id:3, title:"Чётность"},
   kids: [
-    {code:"vanya", name:"Ваня", badges:[], lessons:{1:{letter:"С началом путешествия! Впереди целое небо задач. Не бойся ошибаться и говорить свои идеи вслух: каждая попытка зажигает искру."}}},
-    {code:"sasha", name:"Саша", badges:["yasno","gip"], lessons:{1:{
+    {code:"vanya-58972", name:"Ваня", badges:[], lessons:{1:{letter:"С началом путешествия! Впереди целое небо задач. Не бойся ошибаться и говорить свои идеи вслух: каждая попытка зажигает искру."}}},
+    {code:"sasha-32360", name:"Саша", badges:["yasno","gip"], lessons:{1:{
        letter:"Путешествие началось! Здесь не нужно спешить и не страшно ошибаться. Главное — думать и объяснять, почему ты так решил.",
        marks:{"Д2":"try","5":"self","7":"try","9":"try"},
        notes:{
@@ -224,7 +224,7 @@ const DATA = {
          "9":{good:"Ты честно записал предположение и довёл рассуждение до конца.",
               note:"Кажется, что так не бывает. А если выбрать особенный день? Подумай, какого числа Петя это говорит и когда у него день рождения."}
        }}}},
-    {code:"dima",  name:"Дима", badges:["lovec"], lessons:{1:{
+    {code:"dima-19368",  name:"Дима", badges:["lovec"], lessons:{1:{
        letter:"С началом путешествия! Первые звёзды уже горят. Не бойся трудных задач: даже неверная идея — это шаг к верной.",
        marks:{"Д1":"try","Д2":"try","5":"self","7":"self","9":"try","10":"try"},
        notes:{
@@ -238,7 +238,7 @@ const DATA = {
               note:"Кажется, что так не бывает. А если выбрать особенный день? Подумай, какого числа Петя это говорит и когда у него день рождения."},
          "10":{note:"Бесконечно много способов не получится: мест для знаков всего восемь. Но способов и правда несколько. Найди хотя бы один!"}
        }}}},
-    {code:"kolya", name:"Коля", badges:[], lessons:{1:{letter:"Добро пожаловать в путешествие! Любую мысль можно сказать вслух, даже если ты не уверен. Смелая догадка здесь ценится больше, чем быстрый ответ."}}}
+    {code:"kolya-51019", name:"Коля", badges:[], lessons:{1:{letter:"Добро пожаловать в путешествие! Любую мысль можно сказать вслух, даже если ты не уверен. Смелая догадка здесь ценится больше, чем быстрый ответ."}}}
   ],
   /* выдуманный ученик, чтобы показать, как выглядит заполненный журнал */
   demoKid: {code:"primer", name:"Пример", demo:true, badges:["smelo","upor"],
@@ -294,9 +294,9 @@ function gate(msg){
   app.innerHTML=`<div class="gate">
     <p class="eyebrow">Математический кружок · 5 класс</p>
     <h1>Звёздный журнал</h1>
-    <p class="muted">Каждая решённая домашняя задача зажигает звезду. Напиши своё имя и посмотри на своё небо.</p>
-    <form id="f"><label for="code" hidden>Твоё имя</label>
-      <input id="code" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="например, Ваня">
+    <p class="muted">Каждая решённая домашняя задача зажигает звезду. Напиши своё имя и свои пять цифр и посмотри на своё небо.</p>
+    <form id="f"><label for="code" hidden>Имя и пять цифр</label>
+      <input id="code" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="например, Маша 12345">
       <button class="btn" type="submit">Открыть небо</button></form>
     <p class="err" role="alert">${msg?esc(msg):""}</p>
   </div>`;
@@ -305,8 +305,11 @@ function gate(msg){
 function bindOut(){const o=document.getElementById("out");if(o)o.onclick=e=>{e.preventDefault();go("");};}
 function go(raw){
   let code=String(raw||"").trim().toLowerCase().replace(/^#/,"");
-  const byName=[...DATA.kids,DATA.demoKid].find(k=>k.name.toLowerCase()===code);
-  if(byName) code=byName.code;
+  /* принимаем «Ваня 12345», «ваня12345» и «vanya-12345» */
+  const flat=x=>String(x).toLowerCase().replace(/[^a-zа-яё0-9]/g,"");
+  const digits=c=>c.split("-")[1]||"";
+  const hit=DATA.kids.find(k=>flat(code)===flat(k.code)||flat(code)===flat(k.name)+digits(k.code));
+  if(hit) code=hit.code; else if(flat(code)===flat(DATA.teacherCode)) code=DATA.teacherCode;
   try{ if(location.hash.slice(1)!==code) history.replaceState(null,"","#"+code); }catch(e){}
   route(code);
 }
@@ -314,7 +317,7 @@ function route(code){
   if(!code) return gate();
   if(code===DATA.teacherCode) return teacher();
   kid = code===DATA.demoKid.code ? DATA.demoKid : DATA.kids.find(k=>k.code===code);
-  if(!kid) return gate("Такого имени в журнале нет. Проверь, нет ли опечатки.");
+  if(!kid) return gate("Не получилось. Напиши имя и свои пять цифр, например: Маша 12345.");
   /* открываем последнее занятие, по которому у ученика уже что-то есть */
   lesson=[...DATA.lessons].reverse().find(l=>kid.lessons[l.id])||DATA.lessons[DATA.lessons.length-1]; sel=null; kidView();
   if(!tourSeen(kid.code)) startTour(celebrate); else celebrate();
@@ -426,8 +429,8 @@ function teacher(){
       <td><button class="btn ghost" style="padding:8px 14px" data-c="${esc(k.code)}">Открыть небо</button></td></tr>`;};
   app.innerHTML=`
     <div class="top"><div><p class="eyebrow">Звёздный журнал · учитель · <a href="#" id="out">выйти</a></p><h1>Все ученики</h1></div></div>
-    <p class="muted" style="max-width:65ch;margin-bottom:18px">Ребёнок входит по имени, русскими или латинскими буквами. Личная ссылка — это адрес страницы и имя после решётки, например <code>#${esc(DATA.kids[0].code)}</code>.</p>
-    <div class="tbl"><table><thead><tr><th>Ученик</th><th>Имя в ссылке</th><th>Зажжено</th><th>Красивых</th><th>На доработке</th><th>Не сдано</th><th></th></tr></thead>
+    <p class="muted" style="max-width:65ch;margin-bottom:18px">Ребёнок пишет имя и свои пять цифр, например «Ваня 12345». Личная ссылка — это адрес страницы и код после решётки, например <code>#${esc(DATA.kids[0].code)}</code>.</p>
+    <div class="tbl"><table><thead><tr><th>Ученик</th><th>Код для входа</th><th>Зажжено</th><th>Красивых</th><th>На доработке</th><th>Не сдано</th><th></th></tr></thead>
     <tbody>${DATA.kids.map(row).join("")}</tbody></table></div>`;
   bindOut();
   app.querySelectorAll("[data-c]").forEach(b=>b.onclick=()=>go(b.dataset.c));
