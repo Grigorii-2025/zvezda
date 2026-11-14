@@ -306,7 +306,9 @@ function kidView(){
     return `<g class="star${t.k===sel?" sel":""}" data-k="${esc(t.k)}" tabindex="0" role="button" aria-label="Задача ${esc(t.k)}, ${esc(t.name)}: ${ST[m].label}" transform="translate(${p[0]} ${p[1]})">
       <circle r="${32*s}" fill="transparent"/><circle class="ring" r="${32*s}"/>
       <g transform="scale(${s})">${starShape(m)}</g><text y="${32*s+22}">${esc(t.name)}${t.star?"*":""}</text></g>`;}).join("");
-  const waiting=hw.filter(t=>!ST[mark(kid,lesson,t.k)].lit);
+  const waiting=hw.filter(t=>mark(kid,lesson,t.k)==="open");
+  const fixing=hw.filter(t=>["try","noexp"].includes(mark(kid,lesson,t.k)));
+  const li=t=>`<li><button data-k="${esc(t.k)}">${esc(t.k)}${t.star?"*":""}. ${esc(t.name)}<small>${ST[mark(kid,lesson,t.k)].wait}</small></button></li>`;
 
   app.innerHTML=`
     ${kid.demo?`<p class="demo">Это пример с выдуманными результатами, чтобы показать, как выглядит заполненное небо.</p>`:""}
@@ -334,9 +336,12 @@ function kidView(){
     </div>
     <div class="below">
       <div class="card" id="waitbox"><h3>Звёзды, которые ждут</h3>
-        ${waiting.length?`<p class="muted small">Домашнюю задачу можно прислать или дописать в любой день.</p>
-        <ul class="todo">${waiting.map(t=>`<li><button data-k="${esc(t.k)}">${esc(t.k)}${t.star?"*":""}. ${esc(t.name)}<small>${ST[mark(kid,lesson,t.k)].wait}</small></button></li>`).join("")}</ul>`
-        :`<p>Всё созвездие горит целиком!</p>`}</div>
+        ${waiting.length?`<p class="muted small">За эти задачи ты ещё не брался. Пришли решение в любой день.</p>
+        <ul class="todo">${waiting.map(li).join("")}</ul>`
+        :`<p>Ты попробовал все задачи этого созвездия!</p>`}
+        ${fixing.length?`<h3 style="margin-top:8px">Можно разжечь ярче</h3>
+        <p class="muted small">Здесь уже есть твоя идея. Осталось найти ошибку или дописать объяснение.</p>
+        <ul class="todo">${fixing.map(li).join("")}</ul>`:""}</div>
     </div>
     <section class="block" id="badgebox"><h2>Знаки отличия</h2>
       <p class="muted small" style="margin-top:4px">Их дают не за скорость, а за то, как ты думаешь. Один и тот же знак можно получить много раз.</p>
@@ -388,7 +393,7 @@ const TOUR=[
   {sel:"svg.sky",  title:"Созвездие",            text:"Каждая звезда — это домашняя задача. Нажми на любую звезду, чтобы узнать о ней больше."},
   {sel:".legend",  title:"Какие бывают звёзды",  text:"Чем лучше решение, тем ярче звезда. Пунктирная звезда ещё не зажжена."},
   {sel:"#detail",  title:"Карточка задачи",      text:"Тут условие задачи, твой результат и моя заметка к решению."},
-  {sel:"#waitbox", title:"Звёзды, которые ждут", text:"Эти задачи ещё можно решить или дописать. Пришли решение, и звезда загорится."},
+  {sel:"#waitbox", title:"Звёзды, которые ждут", text:"За эти задачи ты ещё не брался. Пришли решение, и звезда загорится. Ниже бывают задачи, где осталось исправить ошибку или дописать объяснение."},
   {sel:"#badgebox",title:"Знаки отличия",        text:"Их дают за то, как ты думаешь: за смелую идею, за упорство, за ясное объяснение."}
 ];
 const seenTour={};
