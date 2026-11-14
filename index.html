@@ -174,6 +174,7 @@ const DATA = {
     {id:"dva",    glyph:"2×", title:"Второй способ",   how:"Найти ещё одно решение той же задачи"},
     {id:"avtor",  glyph:"✎",  title:"Автор задачи",    how:"Придумать свою задачу для остальных"},
     /* эти знаки считаются сами по результатам домашних задач */
+    {id:"start",  glyph:"➤",  title:"Начало путешествия",     how:"Прийти на первое занятие кружка", auto:true},
     {id:"first",  glyph:"1",  title:"Первая звезда",          how:"Зажечь свою первую звезду", auto:true},
     {id:"tried",  glyph:"◐",  title:"Ни одной тёмной звезды", how:"Взяться за каждую задачу созвездия", auto:true},
     {id:"full",   glyph:"★",  title:"Созвездие собрано",      how:"Зажечь все звёзды одного созвездия", auto:true},
@@ -315,7 +316,7 @@ function autoCounts(k){
     if(ms.every(m=>ST[m].lit)) full++;
     l.hw.forEach((t,i)=>{ if(t.star&&ST[ms[i]].lit) hard++; });
   });
-  return {first,tried,full,hard};
+  return {start:DATA.lessons.length?1:0,first,tried,full,hard};
 }
 function totals(k){
   let lit=0,idea=0,fix=0,open=0;
