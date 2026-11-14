@@ -135,6 +135,15 @@ code{font:500 15px ui-monospace,Menlo,Consolas,monospace;background:rgba(0,0,0,.
 .tour-tip .skip{background:none;border:0;color:var(--muted);cursor:pointer;font-size:14px;padding:4px 0;text-decoration:underline}
 @media (prefers-reduced-motion:reduce){.tour-spot,.tour-tip{transition:none}}
 
+/* новый знак отличия */
+.pop-back{position:fixed;inset:0;z-index:60;background:rgba(5,7,25,.82);display:grid;place-items:center;padding:20px}
+.pop{width:min(420px,100%);max-height:100%;overflow:auto;background:#1b2260;border:1px solid var(--gold);border-radius:24px;padding:26px 22px;display:grid;gap:16px;text-align:center;box-shadow:0 0 60px rgba(255,209,102,.25);animation:popin .35s ease}
+@keyframes popin{from{transform:scale(.9);opacity:0}}
+.pop h2{font-size:22px;font-weight:800;color:var(--gold)}
+.pop .badge{text-align:left}
+.pop .btn{justify-self:center}
+@media (prefers-reduced-motion:reduce){.pop{animation:none}}
+
 @media (max-width:760px){
   .stage{grid-template-columns:minmax(0,1fr)}
   .review .letter{font-size:24px}
@@ -293,7 +302,7 @@ function route(code){
   kid = code===DATA.demoKid.code ? DATA.demoKid : DATA.kids.find(k=>k.code===code);
   if(!kid) return gate("Такого имени в журнале нет. Проверь, нет ли опечатки.");
   lesson=DATA.lessons[DATA.lessons.length-1]; sel=null; kidView();
-  if(!tourSeen(kid.code)) startTour();
+  if(!tourSeen(kid.code)) startTour(celebrate); else celebrate();
 }
 const mark=(k,l,key)=>((k.lessons[l.id]||{}).marks||{})[key]||"open";
 function autoCounts(k){
@@ -431,7 +440,7 @@ function markTour(code){
   try{ localStorage.setItem("zj-tour-v2-"+code,"1"); }catch(e){}
 }
 let tourOpen=false;
-function startTour(){
+function startTour(onDone){
   if(tourOpen) return; tourOpen=true;
   const steps=TOUR.filter(t=>document.querySelector(t.sel));
   const block=document.createElement("div"), spot=document.createElement("div"), tip=document.createElement("div");
@@ -467,6 +476,7 @@ function startTour(){
     removeEventListener("scroll",place,true); removeEventListener("resize",place); removeEventListener("keydown",key);
     tourOpen=false; if(kid) markTour(kid.code);
     scrollTo(0,0);
+    if(typeof onDone==="function") onDone();
   }
   function key(e){ if(e.key==="Escape") close(); }
   tip.addEventListener("click",e=>{
@@ -478,6 +488,37 @@ function startTour(){
   });
   addEventListener("scroll",place,true); addEventListener("resize",place); addEventListener("keydown",key);
   show();
+}
+
+
+/* ===================== НОВЫЕ ЗНАКИ ПРИ ВХОДЕ ===================== */
+function badgeCounts(k){
+  const A=autoCounts(k), c={};
+  DATA.badges.forEach(b=>{c[b.id]=b.auto?A[b.id]:(k.badges||[]).filter(x=>x===b.id).length;});
+  return c;
+}
+const seenBadges={};
+function celebrate(){
+  if(!kid) return;
+  const now=badgeCounts(kid), code=kid.code;
+  let old=seenBadges[code];
+  if(!old){ try{ old=JSON.parse(localStorage.getItem("zj-badges-"+code)||"{}"); }catch(e){ old={}; } }
+  const fresh=DATA.badges.filter(b=>now[b.id]>(old[b.id]||0));
+  const save=()=>{ seenBadges[code]=now; try{ localStorage.setItem("zj-badges-"+code,JSON.stringify(now)); }catch(e){} };
+  if(!fresh.length) return save();
+  const back=document.createElement("div"); back.className="pop-back";
+  back.innerHTML=`<div class="pop" role="dialog" aria-label="Новые знаки отличия">
+    <p class="eyebrow">Поздравляю!</p>
+    <h2>${fresh.length>1?"У тебя новые знаки отличия":"У тебя новый знак отличия"}</h2>
+    ${fresh.map(b=>`<div class="badge"><i>${esc(b.glyph)}${now[b.id]>1?`<em>×${now[b.id]}</em>`:""}</i><div><b>${esc(b.title)}</b><span>${esc(b.how)}</span></div></div>`).join("")}
+    <button class="btn" type="button">Здорово!</button></div>`;
+  document.body.append(back);
+  const close=()=>{ back.remove(); save(); removeEventListener("keydown",key); };
+  const key=e=>{ if(e.key==="Escape") close(); };
+  back.querySelector("button").onclick=close;
+  back.onclick=e=>{ if(e.target===back) close(); };
+  addEventListener("keydown",key);
+  back.querySelector("button").focus();
 }
 
 /* фоновые звёзды */
