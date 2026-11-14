@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Звёздный журнал кружка</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Golos+Text:wght@400;500;700&family=Unbounded:wght@500;800&display=swap" rel="stylesheet">
+<style>
+/* Один мир: ночное небо. Домашние задачи каждого занятия образуют созвездие.
+   Слева небо, справа карточка выбранной звезды; ниже отзыв о занятии, звёзды в ожидании, знаки. */
+:root{
+  color-scheme: dark;
+  --sky:#0c1030;
+  --sky-2:#171e52;
+  --panel:rgba(255,255,255,.055);
+  --line:rgba(190,200,255,.16);
+  --ink:#eef0ff;
+  --muted:#a2abd9;
+  --gold:#ffd166;
+  --ember:#ff8a5c;
+  --display:"Unbounded","Trebuchet MS",sans-serif;
+  --body:"Golos Text","Segoe UI",Roboto,sans-serif;
+  --hand:"Caveat","Comic Sans MS",cursive;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:radial-gradient(1200px 700px at 75% -10%,var(--sky-2),transparent 70%),var(--sky);
+  color:var(--ink);font:400 17px/1.5 var(--body);min-height:100vh;
+}
+#dust{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:0}
+.wrap{position:relative;z-index:1;max-width:1040px;margin:0 auto;padding:28px 20px 64px}
+h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance;letter-spacing:-.01em}
+h1{font-size:clamp(26px,5vw,44px);font-weight:800;line-height:1.1}
+h2{font-size:19px;font-weight:500}
+h3{font-size:15px;font-weight:500}
+p{margin:0}
+button,input{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--gold);outline-offset:3px;border-radius:6px}
+.muted{color:var(--muted)}
+.small{font-size:15px}
+.eyebrow a{color:var(--ink)}
+.eyebrow{font-family:var(--display);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+
+/* вход */
+.gate{min-height:70vh;display:grid;align-content:center;gap:22px;max-width:560px}
+.gate form{display:flex;gap:10px;flex-wrap:wrap}
+.gate input{flex:1 1 220px;padding:14px 16px;border-radius:14px;border:1px solid var(--line);background:rgba(0,0,0,.25);font-size:18px}
+.btn{padding:14px 22px;border-radius:14px;border:0;background:var(--gold);color:#2a2000;font-weight:700;cursor:pointer}
+.btn:hover{filter:brightness(1.08)}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line);font-weight:500}
+.err{color:var(--ember);min-height:1.5em}
+
+/* шапка ученика */
+.top{display:flex;flex-wrap:wrap;gap:20px 40px;align-items:flex-end;justify-content:space-between;margin-bottom:26px}
+.totals{display:flex;gap:26px;flex-wrap:wrap}
+.totals div{display:grid}
+.totals b{font-family:var(--display);font-size:30px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.1}
+.totals .g b{color:var(--gold)} .totals .e b{color:var(--ember)}
+.totals span{font-size:14px;color:var(--muted)}
+.demo{border:1px dashed var(--ember);color:var(--ember);border-radius:12px;padding:8px 14px;font-size:14px;margin-bottom:20px;display:inline-block}
+
+.tabs{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px}
+.tab{padding:10px 16px;border-radius:999px;border:1px solid var(--line);background:transparent;cursor:pointer;font-size:15px}
+.tab[aria-selected="true"]{background:var(--ink);color:var(--sky);border-color:var(--ink);font-weight:700}
+.tab[disabled]{cursor:default;border-style:dashed;color:var(--muted)}
+
+.stage{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:20px;align-items:start}
+.skybox{border:1px solid var(--line);border-radius:24px;background:radial-gradient(closest-side at 50% 45%,rgba(120,140,255,.14),transparent),rgba(0,0,0,.22);padding:14px 14px 10px}
+.skybox header{display:flex;justify-content:space-between;gap:12px;align-items:baseline;padding:4px 8px 0;flex-wrap:wrap}
+svg.sky{display:block;width:100%;height:auto}
+.star{cursor:pointer;outline:none}
+.star text{font:500 15px var(--body);fill:var(--muted);text-anchor:middle}
+.star:hover text,.star.sel text{fill:var(--ink)}
+.star .ring{fill:none;stroke:var(--ink);stroke-width:1.5;stroke-dasharray:2 7;stroke-linecap:round;opacity:0}
+.star:hover .ring{opacity:.35}
+.star.sel .ring{opacity:.9}
+.star:focus-visible .ring{opacity:1;stroke:var(--gold);stroke-dasharray:none}
+.halo{transform-box:fill-box;transform-origin:center;animation:pulse 3.2s ease-in-out infinite}
+@keyframes pulse{50%{transform:scale(1.25);opacity:.25}}
+@media (prefers-reduced-motion:reduce){.halo{animation:none}}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;padding:6px 8px 4px;font-size:13px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend svg{width:18px;height:18px;flex:none}
+
+.card{border:1px solid var(--line);border-radius:24px;background:var(--panel);padding:22px;display:grid;gap:14px;align-content:start}
+.chip{display:inline-flex;align-items:center;gap:8px;padding:6px 12px 6px 8px;border-radius:999px;font-size:14px;font-weight:700;border:1px solid currentColor;width:max-content;max-width:100%}
+.chip svg{width:18px;height:18px;flex:none}
+.c-self,.c-idea,.c-noexp{color:var(--gold)} .c-try{color:var(--ember)} .c-open{color:var(--muted)}
+.cond{background:rgba(0,0,0,.3);border:1px solid var(--line);border-radius:14px;padding:12px 14px;font-size:16px;line-height:1.45}
+.cond small{display:block;font:500 11px var(--display);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.note{font:500 24px/1.25 var(--hand);color:var(--gold)}
+.note small{display:block;font:400 13px var(--body);color:var(--muted);margin-bottom:2px}
+.note.fix{color:var(--ember)}
+
+.below{margin-top:20px}
+.review{margin-bottom:20px;border-color:rgba(255,209,102,.45);background:rgba(255,209,102,.06)}
+.review .letter{font-size:28px;max-width:60ch}
+.letter{font:500 25px/1.3 var(--hand)}
+.letter small{display:block;font:400 13px var(--body);color:var(--muted);margin-top:10px}
+.todo{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.todo button{width:100%;text-align:left;background:transparent;border:1px dashed var(--line);border-radius:12px;padding:10px 12px;cursor:pointer}
+.todo button:hover{border-color:var(--ink)}
+.todo small{display:block;color:var(--muted);font-size:13px}
+
+.badges{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px;margin-top:14px}
+.badge{display:flex;gap:12px;align-items:center;border:1px solid var(--line);border-radius:18px;padding:12px}
+.badge i{flex:none;width:52px;height:52px;border-radius:50%;display:grid;place-items:center;font:800 20px var(--display);font-style:normal;background:var(--gold);color:#2a2000;box-shadow:0 0 22px rgba(255,209,102,.45)}
+.badge i{position:relative}
+.badge i em{position:absolute;right:-8px;bottom:-4px;background:var(--ink);color:var(--sky);font:700 12px var(--body);font-style:normal;border-radius:999px;padding:1px 6px}
+.badge.off{opacity:.55}
+.badge.off i{background:transparent;color:var(--muted);border:1px dashed var(--muted);box-shadow:none}
+.badge b{display:block;font-size:15px}
+.badge span{font-size:13px;color:var(--muted)}
+section.block{margin-top:34px}
+
+/* учитель */
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:18px;background:var(--panel)}
+th,td{padding:12px 14px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:13px;color:var(--muted);font-weight:500}
+tr:last-child td{border-bottom:0}
+code{font:500 15px ui-monospace,Menlo,Consolas,monospace;background:rgba(0,0,0,.3);padding:3px 8px;border-radius:8px}
+
+/* обучение при первом входе */
+.tour-block{position:fixed;inset:0;z-index:50}
+.tour-spot{position:fixed;z-index:51;border-radius:18px;box-shadow:0 0 0 9999px rgba(5,7,25,.8);outline:2px solid var(--gold);pointer-events:none;transition:all .25s ease}
+.tour-tip{position:fixed;z-index:52;width:min(350px,calc(100vw - 24px));background:#1b2260;border:1px solid var(--gold);border-radius:18px;padding:16px 18px;display:grid;gap:10px;box-shadow:0 12px 40px rgba(0,0,0,.55);transition:top .25s ease,left .25s ease}
+.tour-tip h3{font-size:16px;font-weight:800;color:var(--gold)}
+.tour-tip .row{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.tour-tip .n{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.tour-tip .btn{padding:9px 16px;border-radius:12px;font-size:15px}
+.tour-tip .skip{background:none;border:0;color:var(--muted);cursor:pointer;font-size:14px;padding:4px 0;text-decoration:underline}
+@media (prefers-reduced-motion:reduce){.tour-spot,.tour-tip{transition:none}}
+
+@media (max-width:760px){
+  .stage{grid-template-columns:minmax(0,1fr)}
+  .review .letter{font-size:24px}
+  .totals b{font-size:24px}
+}
+</style>
+</head>
+<body>
+<canvas id="dust" aria-hidden="true"></canvas>
+<div class="wrap" id="app"></div>
+
+<script>
+/* ===================== ДАННЫЕ (обновляются после каждого занятия) ===================== */
+/* Оценки домашних задач:
+   idea  — красивое решение
+   self  — решено и объяснено
+   noexp — ответ верный, но не хватает объяснения
+   try   — была попытка, есть ошибка
+   (нет записи) — ещё не сдано */
+const DATA = {
+  teacherCode: "admin",
+  badges: [
+    {id:"lovec",  glyph:"!",  title:"Ловец ловушек",   how:"Заметить подвох в условии и не попасться"},
+    {id:"smelo",  glyph:"?",  title:"Смелая гипотеза", how:"Высказать идею, даже если не уверен"},
+    {id:"gip",    glyph:"→",  title:"Хорошая гипотеза",how:"Придумать идею, которая помогает продвинуться в задаче"},
+    {id:"upor",   glyph:"∞",  title:"Не сдаюсь",       how:"Вернуться к задаче и довести её до конца"},
+    {id:"yasno",  glyph:"∴",  title:"Ясное объяснение",how:"Записать решение так, чтобы понял любой"},
+    {id:"dva",    glyph:"2×", title:"Второй способ",   how:"Найти ещё одно решение той же задачи"},
+    {id:"avtor",  glyph:"✎",  title:"Автор задачи",    how:"Придумать свою задачу для остальных"}
+  ],
+  lessons: [
+    {id:1, title:"Разминка для ума", sky:"Созвездие Смекалки",
+     hw:[
+      {k:"Д1",name:"Сосуды", q:"Как с помощью сосудов на 4 и 9 литров налить ровно 6 литров воды?"},
+      {k:"Д2",name:"Часы",   q:"Часы бьют 6 ударов за 5 секунд. За сколько секунд они пробьют 12 ударов?"},
+      {k:"5", name:"Улитка", q:"Улитка ползёт вверх по столбу высотой 10 метров. За день она поднимается на 5 метров, а за ночь сползает на 4 метра. На какой день улитка доберётся до верхушки столба, если начала ползти утром?"},
+      {k:"7", name:"Монеты", q:"Среди трёх одинаковых на вид монет одна фальшивая, и она легче настоящих. Как найти её за одно взвешивание на чашечных весах без гирь?"},
+      {k:"9", name:"Петя",   q:"Петя сказал: «Позавчера мне было 10 лет, а в следующем году мне исполнится 13». Может ли Петя говорить правду?"},
+      {k:"10",name:"Сто",    q:"Поставь между цифрами 1 2 3 4 5 6 7 8 9 знаки «+» и «−» так, чтобы получилось 100. Соседние цифры можно не разделять знаком. Найди как можно больше способов!", star:true}
+     ]}
+  ],
+  next: {id:2, title:"Числовые ребусы"},
+  kids: [
+    {code:"vanya", name:"Ваня", badges:[], lessons:{1:{letter:"С началом путешествия! Впереди целое небо задач. Не бойся ошибаться и говорить свои идеи вслух: каждая попытка зажигает искру."}}},
+    {code:"sasha", name:"Саша", badges:["yasno","gip"], lessons:{1:{
+       letter:"Путешествие началось! Здесь не нужно спешить и не страшно ошибаться. Главное — думать и объяснять, почему ты так решил.",
+       marks:{"Д2":"try","5":"self","7":"try","9":"try"},
+       notes:{
+         "Д2":{good:"Ты записал всё рассуждение по шагам, по нему легко понять твою мысль.",
+               note:"В этой задаче спрятана ловушка, и она сработала! Подумай, на что уходят секунды: на сами удары или на что-то другое? Нарисуй 6 ударов точками на линии и посмотри внимательно."},
+         "5":{note:"Отличный рисунок и таблица по дням! Ты увидел, что на шестой день улитка уже на высоте 10 метров, и вовремя остановился. Ловушка не сработала."},
+         "7":{good:"Хорошая идея: придумать монетам вес и проверить на числах.",
+              note:"Проверь свой способ: если на одной чаше две монеты, а на другой одна, какая чаша перевесит? Всегда ли это поможет найти лёгкую монету? Попробуй положить монеты по-другому."},
+         "9":{good:"Ты честно записал предположение и довёл рассуждение до конца.",
+              note:"Кажется, что так не бывает. А если выбрать особенный день? Подумай, какого числа Петя это говорит и когда у него день рождения."}
+       }}}},
+    {code:"dima",  name:"Дима", badges:["lovec"], lessons:{1:{
+       letter:"С началом путешествия! Первые звёзды уже горят. Не бойся трудных задач: даже неверная идея — это шаг к верной.",
+       marks:{"Д1":"try","Д2":"try","5":"self","7":"self","9":"try","10":"try"},
+       notes:{
+         "Д1":{good:"План верный: наливать маленьким сосудом в большой и следить, сколько остаётся.",
+               note:"Проверь шаг после (4, 3). Ты выливаешь 4 литра туда, где уже 3. Сколько там станет? Пересчитай и продолжай переливать, ты на правильном пути."},
+         "Д2":{good:"Ты заметил, что ударов стало вдвое больше.",
+               note:"В этой задаче спрятана ловушка, и она сработала! Подумай, на что уходят секунды: на сами удары или на что-то другое? Нарисуй удары точками, найди ловушку и объясни её."},
+         "5":{note:"Ты не попался в ловушку! Легко подумать: за сутки улитка поднимается на метр, значит, нужно 10 дней. А ты расписал каждый день и увидел, что на шестой она уже наверху."},
+         "7":{note:"Ты разобрал оба случая: когда весы в равновесии и когда одна чаша легче. Это полное решение, к нему не придраться."},
+         "9":{good:"Ты рассуждал по шагам: сколько лет было и сколько станет.",
+              note:"Кажется, что так не бывает. А если выбрать особенный день? Подумай, какого числа Петя это говорит и когда у него день рождения."},
+         "10":{note:"Бесконечно много способов не получится: мест для знаков всего восемь. Но способов и правда несколько. Найди хотя бы один!"}
+       }}}},
+    {code:"kolya", name:"Коля", badges:[], lessons:{1:{letter:"Добро пожаловать в путешествие! Любую мысль можно сказать вслух, даже если ты не уверен. Смелая догадка здесь ценится больше, чем быстрый ответ."}}}
+  ],
+  /* выдуманный ученик, чтобы показать, как выглядит заполненный журнал */
+  demoKid: {code:"primer", name:"Пример", demo:true, badges:["smelo","upor"],
+    lessons:{1:{
+      marks:{"Д1":"noexp","Д2":"idea","5":"self","7":"self","9":"try"},
+      notes:{"Д1":"Все переливания верные! Подпиши, какое число про какой сосуд и что ты делаешь на каждом шаге.",
+             "Д2":"Ты заметил, что считать надо не удары, а промежутки между ними. Это та же идея, что в задаче про бревно!"},
+      letter:"На занятии ты первым предложил идею про бидоны, хотя не был уверен. Так и делают математики. Жду твоих версий и дальше!"}}}
+};
+
+/* ===================== ОФОРМЛЕНИЕ СТАТУСОВ ===================== */
+const ST = {
+  idea: {label:"Красивое решение",       text:"Эта звезда горит ярче остальных.", lit:true},
+  self: {label:"Звезда зажжена",         text:"Решено и объяснено.", lit:true},
+  noexp:{label:"Верно, ждёт объяснения", text:"Ответ верный! Допиши, почему так, и звезда разгорится в полную силу.", wait:"ответ верный, допиши объяснение"},
+  try:  {label:"Смелая попытка",         text:"Идея уже есть, но где-то спряталась ошибка. Найди её и пришли решение ещё раз.", wait:"искра уже есть, найди ошибку"},
+  open: {label:"Ещё в пути",             text:"Эту звезду можно зажечь в любой день: пришли своё решение.", wait:"ждёт твоего решения"}
+};
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+function starPath(R,r,n=5){
+  let d="";
+  for(let i=0;i<n*2;i++){
+    const a=-Math.PI/2+i*Math.PI/n, q=i%2?r:R;
+    d+=(i?"L":"M")+(q*Math.cos(a)).toFixed(1)+" "+(q*Math.sin(a)).toFixed(1);
+  }
+  return d+"Z";
+}
+/* звезда рисуется вокруг точки (0,0), потом сдвигается и масштабируется */
+function starShape(st){
+  if(st==="open")  return `<path d="${starPath(11,5)}" fill="none" stroke="var(--muted)" stroke-width="1.4" stroke-dasharray="3 3"/>`;
+  if(st==="try")   return `<circle r="14" fill="var(--ember)" opacity=".18"/><path d="${starPath(9,4.6,4)}" fill="var(--ember)"/>`;
+  if(st==="noexp") return `<circle r="17" fill="var(--gold)" opacity=".1"/><path d="${starPath(13,5.8)}" fill="var(--gold)" fill-opacity=".22" stroke="var(--gold)" stroke-width="1.6"/>`;
+  if(st==="self")  return `<circle r="19" fill="var(--gold)" opacity=".18"/><path d="${starPath(13,5.8)}" fill="var(--gold)"/>`;
+  return `<circle class="halo" r="24" fill="var(--gold)" opacity=".35"/>
+          <path d="${starPath(25,3,8)}" fill="var(--gold)" opacity=".55"/>
+          <path d="${starPath(16,7)}" fill="#fff3c4" stroke="var(--gold)" stroke-width="1.5"/>`;
+}
+const icon = st => `<svg viewBox="-18 -18 36 36" aria-hidden="true"><g transform="scale(.68)">${starShape(st)}</g></svg>`;
+
+/* расположение звёзд в поле 600×330: мягкий зигзаг, чем меньше звёзд, тем они крупнее */
+function layout(n){
+  const s = n<=3 ? 1.9 : n<=5 ? 1.5 : n<=7 ? 1.2 : 1;
+  const step = n>1 ? Math.min(170, 460/(n-1)) : 0, P=[];
+  for(let i=0;i<n;i++) P.push([300+(i-(n-1)/2)*step, 150+(n>1 ? (i%2 ? 38 : -38) : 0)]);
+  return {P,s};
+}
+
+/* ===================== ЭКРАНЫ ===================== */
+const app=document.getElementById("app");
+let kid=null, lesson=null, sel=null;
+
+function gate(msg){
+  app.innerHTML=`<div class="gate">
+    <p class="eyebrow">Математический кружок · 5 класс</p>
+    <h1>Звёздный журнал</h1>
+    <p class="muted">Каждая решённая домашняя задача зажигает звезду. Напиши своё имя и посмотри на своё небо.</p>
+    <form id="f"><label for="code" hidden>Твоё имя</label>
+      <input id="code" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="например, Ваня">
+      <button class="btn" type="submit">Открыть небо</button></form>
+    <p class="err" role="alert">${msg?esc(msg):""}</p>
+  </div>`;
+  document.getElementById("f").addEventListener("submit",e=>{e.preventDefault();go(document.getElementById("code").value);});
+}
+function bindOut(){const o=document.getElementById("out");if(o)o.onclick=e=>{e.preventDefault();go("");};}
+function go(raw){
+  let code=String(raw||"").trim().toLowerCase().replace(/^#/,"");
+  const byName=[...DATA.kids,DATA.demoKid].find(k=>k.name.toLowerCase()===code);
+  if(byName) code=byName.code;
+  try{ if(location.hash.slice(1)!==code) history.replaceState(null,"","#"+code); }catch(e){}
+  route(code);
+}
+function route(code){
+  if(!code) return gate();
+  if(code===DATA.teacherCode) return teacher();
+  kid = code===DATA.demoKid.code ? DATA.demoKid : DATA.kids.find(k=>k.code===code);
+  if(!kid) return gate("Такого имени в журнале нет. Проверь, нет ли опечатки.");
+  lesson=DATA.lessons[DATA.lessons.length-1]; sel=null; kidView();
+  if(!tourSeen(kid.code)) startTour();
+}
+const mark=(k,l,key)=>((k.lessons[l.id]||{}).marks||{})[key]||"open";
+function totals(k){
+  let lit=0,idea=0,fix=0,open=0;
+  DATA.lessons.forEach(l=>l.hw.forEach(t=>{const m=mark(k,l,t.k);
+    if(ST[m].lit)lit++; if(m==="idea")idea++; if(m==="noexp"||m==="try")fix++; if(m==="open")open++;}));
+  return {lit,idea,fix,open};
+}
+
+function kidView(){
+  const T=totals(kid), L=kid.lessons[lesson.id]||{}, hw=lesson.hw;
+  if(!sel) sel=(hw.find(t=>mark(kid,lesson,t.k)==="idea")||hw[0]).k;
+  const {P,s}=layout(hw.length);
+  let lines="";
+  for(let i=1;i<P.length;i++){
+    const on=ST[mark(kid,lesson,hw[i-1].k)].lit&&ST[mark(kid,lesson,hw[i].k)].lit;
+    lines+=`<line x1="${P[i-1][0]}" y1="${P[i-1][1]}" x2="${P[i][0]}" y2="${P[i][1]}" stroke="${on?"var(--gold)":"var(--muted)"}" stroke-width="${on?1.8:1.2}" ${on?'opacity=".6"':'opacity=".45" stroke-dasharray="2 8" stroke-linecap="round"'}/>`;
+  }
+  const stars=hw.map((t,i)=>{const m=mark(kid,lesson,t.k), p=P[i];
+    return `<g class="star${t.k===sel?" sel":""}" data-k="${esc(t.k)}" tabindex="0" role="button" aria-label="Задача ${esc(t.k)}, ${esc(t.name)}: ${ST[m].label}" transform="translate(${p[0]} ${p[1]})">
+      <circle r="${32*s}" fill="transparent"/><circle class="ring" r="${32*s}"/>
+      <g transform="scale(${s})">${starShape(m)}</g><text y="${32*s+22}">${esc(t.name)}${t.star?"*":""}</text></g>`;}).join("");
+  const waiting=hw.filter(t=>!ST[mark(kid,lesson,t.k)].lit);
+
+  app.innerHTML=`
+    ${kid.demo?`<p class="demo">Это пример с выдуманными результатами, чтобы показать, как выглядит заполненное небо.</p>`:""}
+    <div class="top">
+      <div><p class="eyebrow">Звёздный журнал · <a href="#" id="help">как пользоваться</a> · <a href="#" id="out">выйти</a></p><h1>Привет, ${esc(kid.name)}!</h1></div>
+      <div class="totals">
+        <div class="g"><b>${T.lit}</b><span>звёзд зажжено</span></div>
+        <div class="g"><b>${T.idea}</b><span>красивых решений</span></div>
+        <div class="e"><b>${T.fix}</b><span>можно разжечь ярче</span></div>
+      </div>
+    </div>
+    <div class="tabs" role="tablist">
+      ${DATA.lessons.map(l=>`<button class="tab" role="tab" aria-selected="${l.id===lesson.id}" data-l="${l.id}">Занятие ${l.id} · ${esc(l.title)}</button>`).join("")}
+      ${DATA.next?`<button class="tab" disabled>Занятие ${DATA.next.id} · ${esc(DATA.next.title)} · скоро</button>`:""}
+    </div>
+    <div class="card review"><h3>Отзыв учителя о твоей работе на занятии</h3>
+        <p class="letter">${L.letter?esc(L.letter):`<span class="muted">Отзыв скоро появится.</span>`}<small>твой учитель</small></p></div>
+    <div class="stage">
+      <div class="skybox">
+        <header><h2>${esc(lesson.sky)}</h2><span class="muted" style="font-size:14px">домашние задачи · нажми на звезду</span></header>
+        <svg class="sky" viewBox="0 0 600 330" role="group" aria-label="${esc(lesson.sky)}">${lines}${stars}</svg>
+        <div class="legend">${["idea","self","noexp","try","open"].map(x=>`<span>${icon(x)}${ST[x].label}</span>`).join("")}</div>
+      </div>
+      <div class="card" id="detail" aria-live="polite"></div>
+    </div>
+    <div class="below">
+      <div class="card" id="waitbox"><h3>Звёзды, которые ждут</h3>
+        ${waiting.length?`<p class="muted small">Домашнюю задачу можно прислать или дописать в любой день.</p>
+        <ul class="todo">${waiting.map(t=>`<li><button data-k="${esc(t.k)}">${esc(t.k)}${t.star?"*":""}. ${esc(t.name)}<small>${ST[mark(kid,lesson,t.k)].wait}</small></button></li>`).join("")}</ul>`
+        :`<p>Всё созвездие горит целиком!</p>`}</div>
+    </div>
+    <section class="block" id="badgebox"><h2>Знаки отличия</h2>
+      <p class="muted small" style="margin-top:4px">Их дают не за скорость, а за то, как ты думаешь. Один и тот же знак можно получить много раз.</p>
+      <div class="badges">${DATA.badges.map(b=>{const c=(kid.badges||[]).filter(x=>x===b.id).length;
+        const times=c%10>=2&&c%10<=4&&(c%100<12||c%100>14)?"раза":"раз";
+        return `<div class="badge${c?"":" off"}"><i>${esc(b.glyph)}${c>1?`<em>×${c}</em>`:""}</i><div><b>${esc(b.title)}</b><span>${c>1?`Получен ${c} ${times}`:c?"Получен":"Как получить: "+esc(b.how.toLowerCase())}</span></div></div>`;}).join("")}</div>
+    </section>`;
+  detail();bindOut();
+  document.getElementById("help").onclick=e=>{e.preventDefault();startTour();};
+  const pick=k=>{sel=k;app.querySelectorAll(".star").forEach(g=>g.classList.toggle("sel",g.dataset.k===k));detail();};
+  app.querySelectorAll(".star").forEach(g=>{g.onclick=()=>pick(g.dataset.k);
+    g.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();pick(g.dataset.k);}};});
+  app.querySelectorAll(".todo button").forEach(b=>b.onclick=()=>{pick(b.dataset.k);document.getElementById("detail").scrollIntoView({block:"nearest",behavior:"smooth"});});
+  app.querySelectorAll(".tab[data-l]").forEach(b=>b.onclick=()=>{lesson=DATA.lessons.find(l=>l.id==b.dataset.l);sel=null;kidView();});
+}
+function detail(){
+  const t=lesson.hw.find(x=>x.k===sel), m=mark(kid,lesson,t.k);
+  let n=((kid.lessons[lesson.id]||{}).notes||{})[t.k];
+  if(typeof n==="string") n={note:n};
+  n=n||{};
+  const head={idea:"Чем решение красиво",self:"Заметка учителя",noexp:"Что нужно дописать",try:"Где спряталась ошибка",open:"Заметка учителя"}[m];
+  document.getElementById("detail").innerHTML=`
+    <p class="eyebrow">Домашняя задача ${esc(t.k)}${t.star?" · со звёздочкой":""}</p>
+    <h2 style="font-size:24px;font-weight:800">${esc(t.name)}</h2>
+    <div class="cond"><small>Условие</small>${esc(t.q)}</div>
+    <span class="chip c-${m}">${icon(m)}${ST[m].label}</span>
+    <p>${ST[m].text}</p>
+    ${n.good?`<p class="note"><small>Что уже получилось</small>${esc(n.good)}</p>`:""}
+    ${n.note?`<p class="note${m==="try"?" fix":""}"><small>${head}</small>${esc(n.note)}</p>`:""}`;
+}
+function teacher(){
+  const row=k=>{const T=totals(k);return `<tr><td>${esc(k.name)}</td><td><code>${esc(k.code)}</code></td><td>${T.lit}</td><td>${T.idea}</td><td>${T.fix}</td><td>${T.open}</td>
+      <td><button class="btn ghost" style="padding:8px 14px" data-c="${esc(k.code)}">Открыть небо</button></td></tr>`;};
+  app.innerHTML=`
+    <div class="top"><div><p class="eyebrow">Звёздный журнал · учитель · <a href="#" id="out">выйти</a></p><h1>Все ученики</h1></div></div>
+    <p class="muted" style="max-width:65ch;margin-bottom:18px">Ребёнок входит по имени, русскими или латинскими буквами. Личная ссылка — это адрес страницы и имя после решётки, например <code>#${esc(DATA.kids[0].code)}</code>.</p>
+    <div class="tbl"><table><thead><tr><th>Ученик</th><th>Имя в ссылке</th><th>Зажжено</th><th>Красивых</th><th>На доработке</th><th>Не сдано</th><th></th></tr></thead>
+    <tbody>${DATA.kids.map(row).join("")}</tbody></table></div>`;
+  bindOut();
+  app.querySelectorAll("[data-c]").forEach(b=>b.onclick=()=>go(b.dataset.c));
+}
+
+
+/* ===================== ОБУЧЕНИЕ ===================== */
+const TOUR=[
+  {sel:".totals",  title:"Твой счёт",            text:"Здесь видно, сколько звёзд ты зажёг за всё время."},
+  {sel:".tabs",    title:"Занятия",              text:"У каждого занятия своё созвездие. Нажми на занятие, чтобы открыть его."},
+  {sel:".review",  title:"Отзыв учителя",        text:"Здесь я пишу, как ты поработал на занятии."},
+  {sel:"svg.sky",  title:"Созвездие",            text:"Каждая звезда — это домашняя задача. Нажми на любую звезду, чтобы узнать о ней больше."},
+  {sel:".legend",  title:"Какие бывают звёзды",  text:"Чем лучше решение, тем ярче звезда. Пунктирная звезда ещё не зажжена."},
+  {sel:"#detail",  title:"Карточка задачи",      text:"Тут условие задачи, твой результат и моя заметка к решению."},
+  {sel:"#waitbox", title:"Звёзды, которые ждут", text:"Эти задачи ещё можно решить или дописать. Пришли решение, и звезда загорится."},
+  {sel:"#badgebox",title:"Знаки отличия",        text:"Их дают за то, как ты думаешь: за смелую идею, за упорство, за ясное объяснение."}
+];
+const seenTour={};
+function tourSeen(code){
+  if(seenTour[code]) return true;
+  try{ return localStorage.getItem("zj-tour-v2-"+code)==="1"; }catch(e){ return false; }
+}
+function markTour(code){
+  seenTour[code]=true;
+  try{ localStorage.setItem("zj-tour-v2-"+code,"1"); }catch(e){}
+}
+let tourOpen=false;
+function startTour(){
+  if(tourOpen) return; tourOpen=true;
+  const steps=TOUR.filter(t=>document.querySelector(t.sel));
+  const block=document.createElement("div"), spot=document.createElement("div"), tip=document.createElement("div");
+  block.className="tour-block"; spot.className="tour-spot"; tip.className="tour-tip";
+  tip.setAttribute("role","dialog"); tip.setAttribute("aria-live","polite");
+  document.body.append(block,spot,tip);
+  let i=0, el=null;
+  function place(){
+    if(!el) return;
+    const r=el.getBoundingClientRect(), pad=8, W=innerWidth, H=innerHeight;
+    spot.style.left=(r.left-pad)+"px"; spot.style.top=(r.top-pad)+"px";
+    spot.style.width=(r.width+pad*2)+"px"; spot.style.height=(r.height+pad*2)+"px";
+    const tw=tip.offsetWidth, th=tip.offsetHeight;
+    let top=r.bottom+pad+12;
+    if(top+th>H-8) top=r.top-pad-12-th;
+    if(top<8) top=H-th-12;
+    tip.style.top=Math.max(8,top)+"px";
+    tip.style.left=Math.max(12,Math.min(r.left,W-tw-12))+"px";
+  }
+  function show(){
+    const t=steps[i]; el=document.querySelector(t.sel);
+    tip.innerHTML=`<h3>${esc(t.title)}</h3><p>${esc(t.text)}</p>
+      <div class="row"><span class="n">${i+1} из ${steps.length}</span>
+        <span style="display:flex;gap:8px">${i?`<button class="btn ghost" data-a="back" type="button">Назад</button>`:""}
+        <button class="btn" data-a="next" type="button">${i<steps.length-1?"Дальше":"Понятно!"}</button></span></div>
+      ${i<steps.length-1?`<button class="skip" data-a="skip" type="button">Пропустить обучение</button>`:""}`;
+    el.scrollIntoView({block:"center"});
+    place();
+    tip.querySelector('[data-a="next"]').focus({preventScroll:true});
+  }
+  function close(){
+    block.remove(); spot.remove(); tip.remove();
+    removeEventListener("scroll",place,true); removeEventListener("resize",place); removeEventListener("keydown",key);
+    tourOpen=false; if(kid) markTour(kid.code);
+    scrollTo(0,0);
+  }
+  function key(e){ if(e.key==="Escape") close(); }
+  tip.addEventListener("click",e=>{
+    const a=e.target.closest("[data-a]"); if(!a) return;
+    if(a.dataset.a==="skip") return close();
+    if(a.dataset.a==="back") i--; else i++;
+    if(i>=steps.length) return close();
+    show();
+  });
+  addEventListener("scroll",place,true); addEventListener("resize",place); addEventListener("keydown",key);
+  show();
+}
+
+/* фоновые звёзды */
+(function(){
+  const c=document.getElementById("dust"),x=c.getContext("2d");
+  function draw(){
+    const w=c.width=innerWidth,h=c.height=innerHeight;let s=7;
+    const rnd=()=>(s=(s*16807)%2147483647)/2147483647;
+    for(let i=0;i<170;i++){x.globalAlpha=.15+rnd()*.55;x.fillStyle=rnd()>.85?"#ffd166":"#dfe4ff";
+      x.beginPath();x.arc(rnd()*w,rnd()*h,.4+rnd()*1.2,0,7);x.fill();}
+  }
+  draw();addEventListener("resize",draw);
+})();
+
+addEventListener("hashchange",()=>route(location.hash.slice(1).toLowerCase()));
+route(location.hash.slice(1).toLowerCase());
+</script>
+</body>
+</html>
